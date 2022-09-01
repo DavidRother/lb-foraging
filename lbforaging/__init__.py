@@ -23,6 +23,7 @@ for s, p, f, c, po in product(sizes, players, foods, coop, partial_obs):
         },
     )
 
+
 def grid_registration():
     for s, p, f, c in product(sizes, players, foods, coop):
         for sight in [2, s]: #range(1, s + 1):
