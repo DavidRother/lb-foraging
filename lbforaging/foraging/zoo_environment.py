@@ -36,7 +36,7 @@ class ZooForagingEnvironment(AECEnv):
         super().__init__()
         self.foraging_env = ForagingEnv(players, max_player_level, field_size, max_food, sight, max_episode_steps,
                                         force_coop, normalize_reward, grid_observation, penalty)
-        self.possible_agents = ["player_" + str(r) for r in range(2)]
+        self.possible_agents = ["player_" + str(r) for r in range(players)]
         self.agents = self.possible_agents[:]
 
         self.observation_spaces = {agent: self.foraging_env.get_observation_space() for agent in self.possible_agents}
@@ -67,7 +67,7 @@ class ZooForagingEnvironment(AECEnv):
         self.agents = self.possible_agents[:]
         self._agent_selector.reinit(self.agents)
         self.agent_selection = self._agent_selector.next()
-        self.current_observation = {agent: obs for agent in self.agents}
+        self.current_observation = {agent: obs[idx] for idx, agent in enumerate(self.agents)}
 
         # Get an image observation
         # image_obs = self.game.get_image_obs()

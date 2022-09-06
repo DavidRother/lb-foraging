@@ -459,7 +459,7 @@ class ForagingEnv(Env):
         ninfo = {}
         
         # check the space of obs
-        for i, obs in  enumerate(nobs):
+        for i, obs in enumerate(nobs):
             assert self.observation_space[i].contains(obs), \
                 f"obs space error: obs: {obs}, obs_space: {self.observation_space[i]}"
         
