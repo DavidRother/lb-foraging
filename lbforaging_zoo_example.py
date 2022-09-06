@@ -40,12 +40,12 @@ while not done:
     actions = {f"player_{idx}": env.action_spaces[f"player_{idx}"].sample() for idx in range(players)}
 
     nobs, nreward, ndone, _ = env.step(actions)
-    if sum(nreward) > 0:
-        print(nreward)
+    if sum(nreward.values()) > 0:
+        print(nreward.values())
 
     if render:
         env.render()
         time.sleep(0.5)
 
-    done = np.all(ndone)
+    done = all(ndone.values())
 # print(env.players[0].score, env.players[1].score)

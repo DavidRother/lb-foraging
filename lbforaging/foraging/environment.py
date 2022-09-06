@@ -109,7 +109,7 @@ class ForagingEnv(Env):
         self._grid_observation = grid_observation
 
         self.action_space = gym.spaces.Tuple(tuple([gym.spaces.Discrete(6)] * len(self.players)))
-        self.observation_space = gym.spaces.Tuple(tuple([self._get_observation_space()] * len(self.players)))
+        self.observation_space = gym.spaces.Tuple(tuple([self.get_observation_space()] * len(self.players)))
 
         self.viewer = None
 
@@ -119,7 +119,7 @@ class ForagingEnv(Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def _get_observation_space(self):
+    def get_observation_space(self):
         """The Observation Space for each agent.
         - all of the board (board_size^2) with foods
         - player description (x, y, level)*player_count

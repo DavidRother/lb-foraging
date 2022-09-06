@@ -2,6 +2,7 @@ from pettingzoo import AECEnv
 from pettingzoo.utils import agent_selector
 from pettingzoo.utils import wrappers
 from pettingzoo.utils.conversions import parallel_wrapper_fn
+import gym
 
 from lbforaging.foraging.environment import ForagingEnv
 
@@ -38,8 +39,8 @@ class ZooForagingEnvironment(AECEnv):
         self.possible_agents = ["player_" + str(r) for r in range(2)]
         self.agents = self.possible_agents[:]
 
-        self.observation_spaces = {agent: self.foraging_env.observation_space for agent in self.possible_agents}
-        self.action_spaces = {agent: self.foraging_env.action_space for agent in self.possible_agents}
+        self.observation_spaces = {agent: self.foraging_env.get_observation_space() for agent in self.possible_agents}
+        self.action_spaces = {agent: gym.spaces.Discrete(6) for agent in self.possible_agents}
         self.has_reset = True
 
         self.agent_name_mapping = dict(zip(self.possible_agents, list(range(len(self.possible_agents)))))
@@ -96,7 +97,7 @@ class ZooForagingEnvironment(AECEnv):
         self.last_rewards = rewards
 
         for idx, agent in enumerate(self.agents):
-            self.dones[agent] = done
+            self.dones[agent] = done[idx]
             self.current_observation[agent] = obs[idx]
             self.rewards[agent] = rewards[idx]
             self.infos[agent] = info
