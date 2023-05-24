@@ -13,7 +13,8 @@ class ManualPolicy:
         # action mappings for all agents are the same
 
         self.default_action = 0
-        self.action_mapping = {}
+        self.action_mapping = {pygame.K_SPACE: 0, pygame.K_UP: 1, pygame.K_DOWN: 2, pygame.K_LEFT: 3,
+                               pygame.K_RIGHT: 4, pygame.K_f: 5}
 
     def __call__(self, agent):
         # only trigger when we are the correct agent

@@ -159,7 +159,8 @@ class ForagingEnv(Env):
             min_obs = np.stack([agents_min, foods_min, access_min])
             max_obs = np.stack([agents_max, foods_max, access_max])
 
-        return gym.spaces.Box(np.array(min_obs), np.array(max_obs), dtype=np.float32)
+        shape = np.array(min_obs).shape
+        return gym.spaces.Box(np.array(min_obs), np.array(max_obs), shape=shape, dtype=np.float32)
 
     @classmethod
     def from_obs(cls, obs):
@@ -452,13 +453,13 @@ class ForagingEnv(Env):
         if self._grid_observation:
             layers = make_global_grid_arrays()
             agents_bounds = [get_agent_grid_bounds(*player.position) for player in self.players]
-            nobs = tuple([layers[:, start_x:end_x, start_y:end_y] for start_x, end_x, start_y, end_y in agents_bounds])
+            nobs = [layers[:, start_x:end_x, start_y:end_y] for start_x, end_x, start_y, end_y in agents_bounds]
         else:
-            nobs = tuple([make_obs_array(obs) for obs in observations])
+            nobs = [make_obs_array(obs) for obs in observations]
         nreward = [get_player_reward(obs) for obs in observations]
         ndone = [obs.game_over for obs in observations]
         # ninfo = [{'observation': obs} for obs in observations]
-        ninfo = {}
+        ninfo = [{} for player in self.players]
         
         # check the space of obs
         for i, obs in enumerate(nobs):

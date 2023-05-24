@@ -51,8 +51,8 @@ class LBFEnvironment(AECEnv):
         self.t = 0
 
         self.termination_info = ""
-        self.observation_spaces = {agent: self.foraging_env.observation_space for agent in self.possible_agents}
-        self.action_spaces = {agent: self.foraging_env.action_space for agent in self.possible_agents}
+        self.observation_spaces = {agent: self.foraging_env.observation_space[0] for agent in self.possible_agents}
+        self.action_spaces = {agent: self.foraging_env.action_space[0] for agent in self.possible_agents}
         self.has_reset = True
         self.agent_name_mapping = dict(zip(self.possible_agents, list(range(len(self.possible_agents)))))
         self.agent_selection = None
@@ -85,7 +85,7 @@ class LBFEnvironment(AECEnv):
     def accumulated_step(self, actions):
         # Track internal environment info.
         self.t += 1
-        nobs, nreward, ndone, ninfo = self.foraging_env.step([actions[agent] for agent in self.agents])
+        nobs, nreward, ndone, ninfo = self.foraging_env.step(actions)
 
         truncated = [self.foraging_env._max_episode_steps <= self.t for _ in self.agents]
 
