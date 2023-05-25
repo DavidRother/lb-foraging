@@ -132,8 +132,8 @@ class ForagingEnv(Env):
             max_food = self.max_food
             max_food_level = self.max_player_level * len(self.players)
 
-            min_obs = [-1, -1, 0] * max_food + [-1, -1, 0] * len(self.players)
-            max_obs = [field_x-1, field_y-1, max_food_level] * max_food + [
+            min_obs = [0, 0, 0, 0] * max_food + [0, 0, 0] * len(self.players)
+            max_obs = [field_x-1, field_y-1, max_food_level, 1] * max_food + [
                 field_x-1,
                 field_y-1,
                 self.max_player_level,
@@ -265,13 +265,8 @@ class ForagingEnv(Env):
             ):
                 continue
 
-            self.field[row, col] = (
-                min_level
-                if min_level == max_level
-                # ! this is excluding food of level `max_level` but is kept for
-                # ! consistency with prior LBF versions
-                else self.np_random.integers(min_level, max_level)
-            )
+            self.field[row, col] = (min_level if min_level == max_level
+                                    else self.np_random.integers(min_level, max_level))
             food_count += 1
         self._food_spawned = self.field.sum()
 
@@ -386,24 +381,26 @@ class ForagingEnv(Env):
             ]
 
             for i in range(self.max_food):
-                obs[3 * i] = -1
-                obs[3 * i + 1] = -1
-                obs[3 * i + 2] = 0
+                obs[4 * i] = 0
+                obs[4 * i + 1] = 0
+                obs[4 * i + 2] = 0
+                obs[4 * i + 3] = 0
 
             for i, (y, x) in enumerate(zip(*np.nonzero(observation.field))):
-                obs[3 * i] = y
-                obs[3 * i + 1] = x
-                obs[3 * i + 2] = observation.field[y, x]
+                obs[4 * i] = y
+                obs[4 * i + 1] = x
+                obs[4 * i + 2] = observation.field[y, x]
+                obs[4 * i + 3] = 1
 
             for i in range(len(self.players)):
-                obs[self.max_food * 3 + 3 * i] = -1
-                obs[self.max_food * 3 + 3 * i + 1] = -1
-                obs[self.max_food * 3 + 3 * i + 2] = 0
+                obs[self.max_food * 4 + 3 * i] = -1
+                obs[self.max_food * 4 + 3 * i + 1] = -1
+                obs[self.max_food * 4 + 3 * i + 2] = 0
 
             for i, p in enumerate(seen_players):
-                obs[self.max_food * 3 + 3 * i] = p.position[0]
-                obs[self.max_food * 3 + 3 * i + 1] = p.position[1]
-                obs[self.max_food * 3 + 3 * i + 2] = p.level
+                obs[self.max_food * 4 + 3 * i] = p.position[0]
+                obs[self.max_food * 4 + 3 * i + 1] = p.position[1]
+                obs[self.max_food * 4 + 3 * i + 2] = p.level
 
             return obs
 
@@ -456,7 +453,7 @@ class ForagingEnv(Env):
             nobs = [layers[:, start_x:end_x, start_y:end_y] for start_x, end_x, start_y, end_y in agents_bounds]
         else:
             nobs = [make_obs_array(obs) for obs in observations]
-        nreward = [get_player_reward(obs) for obs in observations]
+        nreward = [get_player_reward(obs) - 0.01 for obs in observations]
         ndone = [obs.game_over for obs in observations]
         # ninfo = [{'observation': obs} for obs in observations]
         ninfo = [{} for player in self.players]
