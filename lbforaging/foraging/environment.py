@@ -114,6 +114,9 @@ class ForagingEnv(Env):
         self.viewer = None
 
         self.n_agents = len(self.players)
+        self.last_actions = [Action.NONE] * self.n_agents
+        self.current_step = 0
+        self.np_random = None
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -171,7 +174,7 @@ class ForagingEnv(Env):
             player.score = p.score if p.score else 0
             players.append(player)
 
-        env = cls(players, None, None, None, None)
+        env = cls(players, None, None, None, None, None, None)
         env.field = np.copy(obs.field)
         env.current_step = obs.current_step
         env.sight = obs.sight
@@ -456,7 +459,7 @@ class ForagingEnv(Env):
         nreward = [get_player_reward(obs) - 0.01 for obs in observations]
         ndone = [obs.game_over for obs in observations]
         # ninfo = [{'observation': obs} for obs in observations]
-        ninfo = [{} for player in self.players]
+        ninfo = [{"action": 0} for player in self.players]
         
         # check the space of obs
         for i, obs in enumerate(nobs):
@@ -469,6 +472,7 @@ class ForagingEnv(Env):
         self.field = np.zeros(self.field_size, np.int32)
         self.spawn_players(self.max_player_level)
         player_levels = sorted([player.level for player in self.players])
+        self.last_actions = [Action.NONE for _ in self.players]
 
         self.spawn_food(
             self.max_food, max_level=sum(player_levels[:3])
@@ -477,11 +481,12 @@ class ForagingEnv(Env):
         self._game_over = False
         self._gen_valid_moves()
 
-        nobs, _, _, _ = self._make_gym_obs()
-        return nobs
+        nobs, _, _, ninfo = self._make_gym_obs()
+        return nobs, ninfo
 
     def step(self, actions):
         self.current_step += 1
+        self.last_actions = actions
 
         for p in self.players:
             p.reward = 0
