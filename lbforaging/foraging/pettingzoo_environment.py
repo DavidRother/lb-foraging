@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 from collections import namedtuple, defaultdict
 from pettingzoo import AECEnv
@@ -11,8 +13,8 @@ from pettingzoo.utils.env import ObsType, ActionType
 from lbforaging.foraging.environment import ForagingEnv
 
 
-def env(players, max_player_level, field_size, max_food, sight, max_episode_steps, force_coop, normalize_reward=True,
-        grid_observation=False, penalty=0.0):
+def env(players, max_player_level, field_size, max_food, sight, max_episode_steps, force_coop, tasks=None,
+        normalize_reward=True, grid_observation=False, penalty=0.0):
     """
     The env function wraps the environment in 3 wrappers by default. These
     wrappers contain logic that is common to many pettingzoo environments.
@@ -21,7 +23,7 @@ def env(players, max_player_level, field_size, max_food, sight, max_episode_step
     elsewhere in the developer documentation.
     """
     env_init = LBFEnvironment(players, max_player_level, field_size, max_food, sight, max_episode_steps, force_coop,
-                              normalize_reward, grid_observation, penalty)
+                              tasks, normalize_reward, grid_observation, penalty)
     env_init = wrappers.CaptureStdoutWrapper(env_init)
     env_init = wrappers.OrderEnforcingWrapper(env_init)
     return env_init
@@ -42,10 +44,10 @@ class LBFEnvironment(AECEnv):
     }
 
     def __init__(self, players, max_player_level, field_size, max_food, sight, max_episode_steps, force_coop,
-                 normalize_reward=True, grid_observation=False, penalty=0.0):
+                 tasks=None, normalize_reward=True, grid_observation=False, penalty=0.0):
         super().__init__()
         self.foraging_env = ForagingEnv(players, max_player_level, field_size, max_food, sight, max_episode_steps,
-                                        force_coop, normalize_reward, grid_observation, penalty)
+                                        force_coop, tasks, normalize_reward, grid_observation, penalty)
         self.possible_agents = ["player_" + str(r) for r in range(players)]
         self.agents = self.possible_agents[:]
         self.t = 0
@@ -85,14 +87,12 @@ class LBFEnvironment(AECEnv):
     def accumulated_step(self, actions):
         # Track internal environment info.
         self.t += 1
-        nobs, nreward, ndone, ninfo = self.foraging_env.step(actions)
-
-        truncated = [self.foraging_env._max_episode_steps <= self.t for _ in self.agents]
+        nobs, nreward, nterminated, ntruncated, ninfo = self.foraging_env.step(actions)
 
         for idx, agent in enumerate(self.agents):
             self.rewards[agent] = nreward[idx]
-            self.terminations[agent] = ndone[idx]
-            self.truncations[agent] = truncated[idx]
+            self.terminations[agent] = nterminated[idx]
+            self.truncations[agent] = ntruncated[idx]
             self.infos[agent] = ninfo[idx]
             self._cumulative_rewards[agent] += nreward[idx]
             self.agent_observations[agent] = nobs[idx]
@@ -107,7 +107,7 @@ class LBFEnvironment(AECEnv):
         self._agent_selector.reinit(self.agents)
         self.agent_selection = self._agent_selector.next()
 
-        nobs = self.foraging_env.reset()
+        nobs, ninfo = self.foraging_env.reset()
 
         # Get an image observation
         self.agent_name_mapping = dict(zip(self.possible_agents, list(range(len(self.possible_agents)))))
@@ -115,7 +115,7 @@ class LBFEnvironment(AECEnv):
         self._cumulative_rewards = dict(zip(self.agents, [0 for _ in self.agents]))
         self.terminations = dict(zip(self.agents, [False for _ in self.agents]))
         self.truncations = dict(zip(self.agents, [False for _ in self.agents]))
-        self.infos = dict(zip(self.agents, [{} for _ in self.agents]))
+        self.infos = dict(zip(self.agents, ninfo))
         self.accumulated_actions = []
         self.agent_observations = {agent: nobs[idx] for idx, agent in enumerate(self.possible_agents)}
 

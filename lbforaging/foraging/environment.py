@@ -25,6 +25,12 @@ class CellEntity(Enum):
     AGENT = 3
 
 
+class ObservationSpace(Enum):
+    GRID_OBSERVATION = 0
+    VECTOR_OBSERVATION = 1
+    SYMBOLIC_OBSERVATION = 2
+
+
 class Player:
     def __init__(self):
         self.controller = None
@@ -82,9 +88,11 @@ class ForagingEnv(Env):
         sight,
         max_episode_steps,
         force_coop,
+        tasks=None,
         normalize_reward=True,
         grid_observation=False,
         penalty=0.0,
+        obs_spaces=None
     ):
         self.logger = logging.getLogger(__name__)
         self.seed()
@@ -116,6 +124,7 @@ class ForagingEnv(Env):
         self.n_agents = len(self.players)
         self.last_actions = [Action.NONE] * self.n_agents
         self.current_step = 0
+        self.tasks = tasks or ([""] * self.n_agents)
         self.np_random = None
 
     def seed(self, seed=None):
@@ -215,10 +224,10 @@ class ForagingEnv(Env):
 
         return (
             self.field[
-                max(row - distance, 0) : min(row + distance + 1, self.rows), col
+                max(row - distance, 0): min(row + distance + 1, self.rows), col
             ].sum()
             + self.field[
-                row, max(col - distance, 0) : min(col + distance + 1, self.cols)
+                row, max(col - distance, 0): min(col + distance + 1, self.cols)
             ].sum()
         )
 
@@ -459,16 +468,18 @@ class ForagingEnv(Env):
         nreward = [get_player_reward(obs) - 0.01 for obs in observations]
         ndone = [obs.game_over for obs in observations]
         # ninfo = [{'observation': obs} for obs in observations]
-        ninfo = [{"action": 0} for player in self.players]
+        ninfo = [{"action": 0, "task": self.tasks[idx]} for idx, player in enumerate(self.players)]
+
+        ntruncated = [obs.current_step >= self._max_episode_steps for obs in observations]
         
         # check the space of obs
         for i, obs in enumerate(nobs):
             assert self.observation_space[i].contains(obs), \
                 f"obs space error: obs: {obs}, obs_space: {self.observation_space[i]}"
         
-        return nobs, nreward, ndone, ninfo
+        return nobs, nreward, ndone, ntruncated, ninfo
 
-    def reset(self):
+    def reset(self, **kwargs):
         self.field = np.zeros(self.field_size, np.int32)
         self.spawn_players(self.max_player_level)
         player_levels = sorted([player.level for player in self.players])
@@ -481,7 +492,7 @@ class ForagingEnv(Env):
         self._game_over = False
         self._gen_valid_moves()
 
-        nobs, _, _, ninfo = self._make_gym_obs()
+        nobs, nreward, ndone, ntruncated, ninfo = self._make_gym_obs()
         return nobs, ninfo
 
     def step(self, actions):
@@ -575,8 +586,8 @@ class ForagingEnv(Env):
         for p in self.players:
             p.score += p.reward
 
-        nobs, nreward, ndone, ninfo = self._make_gym_obs()
-        return nobs, nreward, ndone, ninfo
+        nobs, nreward, ndone, ntruncated, ninfo = self._make_gym_obs()
+        return nobs, nreward, ndone, ntruncated, ninfo
 
     def _init_render(self):
         from .rendering import Viewer
