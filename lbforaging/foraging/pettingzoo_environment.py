@@ -44,7 +44,7 @@ class LBFEnvironment(AECEnv):
     }
 
     def __init__(self, players, max_player_level, field_size, max_food, sight, max_episode_steps, force_coop,
-                 tasks=None, normalize_reward=True, grid_observation=False, penalty=0.0):
+                 tasks=None, normalize_reward=True, grid_observation=False, penalty=0.0, obs_space=None):
         super().__init__()
         self.foraging_env = ForagingEnv(players, max_player_level, field_size, max_food, sight, max_episode_steps,
                                         force_coop, tasks, normalize_reward, grid_observation, penalty)
