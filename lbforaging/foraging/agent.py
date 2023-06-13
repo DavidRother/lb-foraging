@@ -11,25 +11,20 @@ class Agent:
     def __repr__(self):
         return self.name
 
-    def __init__(self, player):
+    def __init__(self, player_id=None):
         self.logger = logging.getLogger(__name__)
-        self.player = player
+        self.player_id = player_id
+        self.observed_position = None
 
-    def __getattr__(self, item):
-        return getattr(self.player, item)
-
-    def _step(self, obs):
-        self.observed_position = next(
-            (x for x in obs.players if x.is_self), None
-        ).position
+    def step(self, obs):
+        self.observed_position = next((x for x in obs.players if x.is_self), None).position
 
         # saves the action to the history
-        action = self.step(obs)
-        self.history.append(action)
+        action = self._step(obs)
 
         return action
 
-    def step(self, obs):
+    def _step(self, obs):
         raise NotImplemented("You must implement an agent")
 
     def _closest_food(self, obs, max_food_level=None, start=None):

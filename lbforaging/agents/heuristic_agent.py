@@ -27,7 +27,7 @@ class HeuristicAgent(Agent):
         else:
             raise ValueError("No simple path found")
 
-    def step(self, obs):
+    def _step(self, obs):
         raise NotImplemented("Heuristic agent is implemented by H1-H4")
 
 
@@ -38,7 +38,7 @@ class H1(HeuristicAgent):
 
     name = "H1"
 
-    def step(self, obs):
+    def _step(self, obs):
         try:
             r, c = self._closest_food(obs)
         except TypeError:
@@ -61,7 +61,7 @@ class H2(HeuristicAgent):
 
     name = "H2"
 
-    def step(self, obs):
+    def _step(self, obs):
 
         players_center = self._center_of_players(obs.players)
 
@@ -87,7 +87,7 @@ class H3(HeuristicAgent):
 
     name = "H3"
 
-    def step(self, obs):
+    def _step(self, obs):
 
         try:
             r, c = self._closest_food(obs, self.level)
@@ -112,7 +112,7 @@ class H4(HeuristicAgent):
 
     name = "H4"
 
-    def step(self, obs):
+    def _step(self, obs):
 
         players_center = self._center_of_players(obs.players)
         players_sum_level = sum([a.level for a in obs.players])

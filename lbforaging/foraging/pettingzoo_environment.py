@@ -10,11 +10,11 @@ from gymnasium.utils import seeding
 import gymnasium as gym
 from pettingzoo.utils.env import ObsType, ActionType
 
-from lbforaging.foraging.environment import ForagingEnv
+from lbforaging.foraging.environment import ForagingEnv, ObservationSpace
 
 
 def env(players, max_player_level, field_size, max_food, sight, max_episode_steps, force_coop, tasks=None,
-        normalize_reward=True, grid_observation=False, penalty=0.0):
+        normalize_reward=True, obs_spaces=None, penalty=0.0):
     """
     The env function wraps the environment in 3 wrappers by default. These
     wrappers contain logic that is common to many pettingzoo environments.
@@ -23,7 +23,7 @@ def env(players, max_player_level, field_size, max_food, sight, max_episode_step
     elsewhere in the developer documentation.
     """
     env_init = LBFEnvironment(players, max_player_level, field_size, max_food, sight, max_episode_steps, force_coop,
-                              tasks, normalize_reward, grid_observation, penalty)
+                              tasks, normalize_reward, obs_spaces, penalty)
     env_init = wrappers.CaptureStdoutWrapper(env_init)
     env_init = wrappers.OrderEnforcingWrapper(env_init)
     return env_init
@@ -44,10 +44,10 @@ class LBFEnvironment(AECEnv):
     }
 
     def __init__(self, players, max_player_level, field_size, max_food, sight, max_episode_steps, force_coop,
-                 tasks=None, normalize_reward=True, grid_observation=False, penalty=0.0, obs_space=None):
+                 tasks=None, normalize_reward=True, obs_spaces=None, penalty=0.0):
         super().__init__()
         self.foraging_env = ForagingEnv(players, max_player_level, field_size, max_food, sight, max_episode_steps,
-                                        force_coop, tasks, normalize_reward, grid_observation, penalty)
+                                        force_coop, tasks, normalize_reward, penalty, obs_spaces)
         self.possible_agents = ["player_" + str(r) for r in range(players)]
         self.agents = self.possible_agents[:]
         self.t = 0

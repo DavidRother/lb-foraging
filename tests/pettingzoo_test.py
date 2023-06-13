@@ -9,11 +9,9 @@ max_food = 2
 sight = 8
 max_episode_steps = 50
 force_coop = False
-grid_observation = True
 
 env = parallel_env(players=players, max_player_level=max_player_level, field_size=field_size, max_food=max_food,
-                   sight=sight, max_episode_steps=max_episode_steps, force_coop=force_coop,
-                   grid_observation=grid_observation)
+                   sight=sight, max_episode_steps=max_episode_steps, force_coop=force_coop)
 
 env.reset()
 env.render()
