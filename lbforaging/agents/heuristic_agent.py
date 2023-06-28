@@ -47,7 +47,6 @@ class H1(HeuristicAgent):
 
         if (abs(r - y) + abs(c - x)) == 1:
             return Action.LOAD
-
         try:
             return self._move_towards((r, c), obs.actions)
         except ValueError:
