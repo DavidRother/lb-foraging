@@ -129,3 +129,42 @@ class H4(HeuristicAgent):
             return self._move_towards((r, c), obs.actions)
         except ValueError:
             return random.choice(obs.actions)
+
+
+class H5(HeuristicAgent):
+    """
+	H5 Agent always goes to the food in memory location 1 or 2 depending on the setting
+	"""
+
+    name = "H5"
+
+    def _step(self, obs):
+
+        # food_1 = obs.
+        foods = list(zip(*np.nonzero(obs.field)))
+        if len(foods) > 1:
+            food_1 = foods[0]
+            food_2 = foods[1]
+        else:
+            food_1 = foods[0]
+            food_2 = foods[0]
+        # food_choice = random.choices([food_1, food_2], weights=[0.25, 0.75], k=1)[0]
+        food_choice = food_2
+        # try:
+        #     r, c = self._closest_food(obs, players_sum_level, players_center)
+        # except TypeError:
+        #     return random.choice(obs.actions)
+        r, c = self._closest_food(obs)
+        y, x = self.observed_position
+        # print(f"Food position: {food_choice}")
+        # print(f"Agent position: {y, x}")
+        # print(f"Closest food: {r, c}")
+
+        if (abs(food_choice[0] - y) + abs(food_choice[1] - x)) == 1:
+            return Action.LOAD
+
+        try:
+            return self._move_towards((food_choice[0], food_choice[1]), obs.actions)
+        except ValueError:
+            return random.choice(obs.actions)
+

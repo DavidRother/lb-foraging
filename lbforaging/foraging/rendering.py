@@ -5,6 +5,7 @@ import os
 _BLACK = (0, 0, 0)
 _WHITE = (255, 255, 255)
 _GREEN = (0, 255, 0)
+_PLAYER = (200, 100, 0)
 _RED = (255, 0, 0)
 
 script_dir = os.path.dirname(__file__)
@@ -20,21 +21,22 @@ class Viewer:
 
         self.grid_size = 50
         self.icon_size = 20
+        self.player_icon_size = 40
 
-        self.name_font_size = 10
+        self.name_font_size = 20
         self.level_font_size = 20
         pygame.init()
         self._screen = pygame.display.set_mode(
             (self.cols * self.grid_size + 1, self.rows * self.grid_size + 1)
         )
-        self._name_font = pygame.font.SysFont("monospace", self.name_font_size)
+        self._name_font = pygame.font.SysFont("monospace", self.name_font_size, bold=True)
         self._level_font = pygame.font.SysFont("monospace", self.level_font_size)
 
         self.img_apple = pygame.transform.scale(
             img_apple, (self.icon_size, self.icon_size)
         )
         self.img_agent = pygame.transform.scale(
-            img_agent, (self.icon_size, self.icon_size)
+            img_agent, (self.player_icon_size, self.player_icon_size)
         )
 
     def render(self, env):
@@ -90,15 +92,18 @@ class Viewer:
             )
 
     def _draw_players(self, env):
-        for player in env.players:
+        for idx, player in enumerate(env.players):
             r, c = player.position
             self._draw_population_in_cell(
-                self.img_agent, (self.grid_size * c, self.grid_size * r), player.level
+                self.img_agent, (self.grid_size * c, self.grid_size * r), 1
             )
+            # self._screen.blit(self.img_agent, (self.grid_size * c + 5, self.grid_size * r + 5))
             self._screen.blit(
-                self._name_font.render(str(player.name), 1, _WHITE),
-                (
-                    self.grid_size * c + self.grid_size // 3 - 5,
-                    self.grid_size * r + self.grid_size // 3 + 20,
-                ),
+                self._name_font.render(f"L{player.level}", 1, _PLAYER),
+                (self.grid_size * c + self.grid_size // 3 - 14, self.grid_size * r + self.grid_size // 3 + 15),
+            )
+
+            self._screen.blit(
+                self._name_font.render(f"N{idx+1}", 1, _PLAYER),
+                (self.grid_size * c + self.grid_size // 3 + 10, self.grid_size * r + self.grid_size // 3 + 15),
             )

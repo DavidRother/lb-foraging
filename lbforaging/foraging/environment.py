@@ -347,35 +347,18 @@ class ForagingEnv(Env):
         return list(product(*[self._valid_actions[player] for player in self.players]))
 
     def _make_obs(self, player):
+        players = []
+        for a in self.players:
+            if (min(self._transform_to_neighborhood(player.position, self.sight, a.position)) >= 0) and \
+               max(self._transform_to_neighborhood(player.position, self.sight, a.position)) <= 2 * self.sight:
+
+                player_position = self._transform_to_neighborhood(player.position, self.sight, a.position)
+                player_obs = self.PlayerObservation(position=player_position, level=a.level, is_self=a == player,
+                                                    history=a.history, reward=a.reward if a == player else None)
+                players.append(player_obs)
         return self.Observation(
             actions=self._valid_actions[player],
-            players=[
-                self.PlayerObservation(
-                    position=self._transform_to_neighborhood(
-                        player.position, self.sight, a.position
-                    ),
-                    level=a.level,
-                    is_self=a == player,
-                    history=a.history,
-                    reward=a.reward if a == player else None,
-                )
-                for a in self.players
-                if (
-                    min(
-                        self._transform_to_neighborhood(
-                            player.position, self.sight, a.position
-                        )
-                    )
-                    >= 0
-                )
-                and max(
-                    self._transform_to_neighborhood(
-                        player.position, self.sight, a.position
-                    )
-                )
-                <= 2 * self.sight
-            ],
-            # todo also check max?
+            players=players,
             field=np.copy(self.neighborhood(*player.position, self.sight)),
             game_over=self.game_over,
             sight=self.sight,
@@ -468,7 +451,7 @@ class ForagingEnv(Env):
                 nobs.append(self.make_obs_array(obs))
             else:
                 nobs.append(obs)
-        nreward = [self.get_player_reward(obs) - 0.01 for obs in observations]
+        nreward = [self.get_player_reward(obs) for obs in observations]
         ndone = [obs.game_over for obs in observations]
         # ninfo = [{'observation': obs} for obs in observations]
         ninfo = [{"action": 0, "task": self.tasks[idx]} for idx, player in enumerate(self.players)]
@@ -585,6 +568,7 @@ class ForagingEnv(Env):
         self._gen_valid_moves()
 
         for p in self.players:
+            p.reward -= 0.01
             p.score += p.reward
 
         nobs, nreward, ndone, ntruncated, ninfo = self._make_gym_obs()
