@@ -15,9 +15,12 @@ class Agent:
         self.logger = logging.getLogger(__name__)
         self.player_id = player_id
         self.observed_position = None
+        self.level = None
 
     def step(self, obs):
-        self.observed_position = next((x for x in obs.players if x.is_self), None).position
+        self_player = next((x for x in obs.players if x.is_self), None)
+        self.observed_position = self_player.position
+        self.level = self_player.level
 
         # saves the action to the history
         action = self._step(obs)
