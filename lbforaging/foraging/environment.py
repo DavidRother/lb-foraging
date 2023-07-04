@@ -454,7 +454,8 @@ class ForagingEnv(Env):
         nreward = [self.get_player_reward(obs) for obs in observations]
         ndone = [obs.game_over for obs in observations]
         # ninfo = [{'observation': obs} for obs in observations]
-        ninfo = [{"action": 0, "task": self.tasks[idx]} for idx, player in enumerate(self.players)]
+        last_actions = [item.value if isinstance(item, Enum) else item for item in self.last_actions]
+        ninfo = [{"action": last_actions[idx], "task": self.tasks[idx]} for idx, player in enumerate(self.players)]
 
         ntruncated = [obs.current_step >= self._max_episode_steps for obs in observations]
         
