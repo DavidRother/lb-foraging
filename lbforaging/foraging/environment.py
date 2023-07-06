@@ -570,8 +570,8 @@ class ForagingEnv(Env):
         self._gen_valid_moves()
 
         for p in self.players:
-            p.reward *= 4
-            p.reward -= 0.02
+            p.reward *= 10
+            p.reward -= 0.1
             p.score += p.reward
 
         nobs, nreward, ndone, ntruncated, ninfo = self._make_gym_obs()
