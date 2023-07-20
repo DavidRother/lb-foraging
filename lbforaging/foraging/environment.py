@@ -171,7 +171,8 @@ class ForagingEnv(Env):
             max_obs = np.stack([agents_max, foods_max, access_max])
 
         shape = np.array(min_obs).shape
-        return gym.spaces.Box(np.array(min_obs), np.array(max_obs), shape=shape, dtype=np.float32)
+        return gym.spaces.Box(np.array(min_obs, dtype=np.float32), np.array(max_obs, dtype=np.float32),
+                              shape=shape, dtype=np.float32)
 
     @classmethod
     def from_obs(cls, obs):
