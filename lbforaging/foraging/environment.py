@@ -91,7 +91,9 @@ class ForagingEnv(Env):
         tasks=None,
         normalize_reward=True,
         penalty=0.0,
-        obs_spaces=None
+        obs_spaces=None,
+        reward_scheme="new",
+        collision=False
     ):
         self.logger = logging.getLogger(__name__)
         self.seed()
@@ -125,6 +127,8 @@ class ForagingEnv(Env):
         self.current_step = 0
         self.tasks = tasks or ([""] * self.n_agents)
         self.np_random = None
+        self.reward_scheme = reward_scheme
+        self.collision = collision
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -528,10 +532,14 @@ class ForagingEnv(Env):
         # and do movements for non colliding players
 
         for k, v in collisions.items():
-            # if len(v) > 1:  # make sure no more than an player will arrive at location
-            #     continue
-            for p in v:
-                p.position = k
+            if self.collision:
+                if len(v) > 1:  # make sure no more than one player will arrive at location
+                    continue
+                else:
+                    v[0].position = k
+            else:
+                for p in v:
+                    p.position = k
 
         # finally process the loadings:
         while loading_players:
@@ -570,10 +578,16 @@ class ForagingEnv(Env):
         )
         self._gen_valid_moves()
 
-        for p in self.players:
-            p.reward *= 10
-            p.reward -= 0.1
-            p.score += p.reward
+        if self.reward_scheme == "new":
+            for p in self.players:
+                p.reward *= 10
+                p.reward -= 0.1
+                p.score += p.reward
+        elif self.reward_scheme == "old":
+            for p in self.players:
+                p.score += p.reward
+        else:
+            raise Exception("No valid reward scheme selected!")
 
         nobs, nreward, ndone, ntruncated, ninfo = self._make_gym_obs()
         return nobs, nreward, ndone, ntruncated, ninfo
