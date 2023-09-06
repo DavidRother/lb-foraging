@@ -107,3 +107,6 @@ class Viewer:
                 self._name_font.render(f"N{idx+1}", 1, _PLAYER),
                 (self.grid_size * c + self.grid_size // 3 + 10, self.grid_size * r + self.grid_size // 3 + 15),
             )
+
+    def save_image(self, path="screenshot.png"):
+        pygame.image.save(self._screen, path)

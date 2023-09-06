@@ -607,3 +607,6 @@ class ForagingEnv(Env):
     def close(self):
         if self.viewer:
             self.viewer.close()
+
+    def save_image(self, path="screenshot.png"):
+        self.viewer.save_image(path)

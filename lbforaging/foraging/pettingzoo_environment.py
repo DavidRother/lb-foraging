@@ -137,3 +137,6 @@ class LBFEnvironment(AECEnv):
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
+
+    def screenshot(self, path="screenshot.png"):
+        self.foraging_env.save_image(path)

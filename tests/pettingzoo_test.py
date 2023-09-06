@@ -2,7 +2,7 @@ from lbforaging.foraging.pettingzoo_environment import parallel_env
 from lbforaging.foraging.manual_policy import ManualPolicy
 
 
-players = 1
+players = 2
 max_player_level = 2
 field_size = (8, 8)
 max_food = 2
@@ -15,6 +15,7 @@ env = parallel_env(players=players, max_player_level=max_player_level, field_siz
 
 env.reset()
 env.render()
+env.unwrapped.screenshot()
 
 terminations = {"player_0": False}
 
