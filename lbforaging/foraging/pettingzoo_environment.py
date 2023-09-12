@@ -14,7 +14,8 @@ from lbforaging.foraging.environment import ForagingEnv, ObservationSpace
 
 
 def env(players, max_player_level, field_size, max_food, sight, max_episode_steps, force_coop, tasks=None,
-        normalize_reward=True, obs_spaces=None, penalty=0.0, reward_scheme="new", collision=False):
+        normalize_reward=True, obs_spaces=None, penalty=0.0, reward_scheme="new", collision=False, food_types=None,
+        agent_respawn_rate=0.0, grace_period=20, agent_despawn_rate=0.0):
     """
     The env function wraps the environment in 3 wrappers by default. These
     wrappers contain logic that is common to many pettingzoo environments.
@@ -23,7 +24,8 @@ def env(players, max_player_level, field_size, max_food, sight, max_episode_step
     elsewhere in the developer documentation.
     """
     env_init = LBFEnvironment(players, max_player_level, field_size, max_food, sight, max_episode_steps, force_coop,
-                              tasks, normalize_reward, obs_spaces, penalty, reward_scheme, collision)
+                              tasks, normalize_reward, obs_spaces, penalty, reward_scheme, collision, food_types,
+                              agent_respawn_rate, grace_period, agent_despawn_rate)
     env_init = wrappers.CaptureStdoutWrapper(env_init)
     env_init = wrappers.OrderEnforcingWrapper(env_init)
     return env_init
@@ -44,11 +46,12 @@ class LBFEnvironment(AECEnv):
     }
 
     def __init__(self, players, max_player_level, field_size, max_food, sight, max_episode_steps, force_coop,
-                 tasks=None, normalize_reward=True, obs_spaces=None, penalty=0.0, reward_scheme="new", collision=False):
+                 tasks=None, normalize_reward=True, obs_spaces=None, penalty=0.0, reward_scheme="new", collision=False,
+                 food_types=None, agent_respawn_rate=0.0, grace_period=20, agent_despawn_rate=0.0):
         super().__init__()
         self.foraging_env = ForagingEnv(players, max_player_level, field_size, max_food, sight, max_episode_steps,
                                         force_coop, tasks, normalize_reward, penalty, obs_spaces, reward_scheme,
-                                        collision)
+                                        collision, food_types, agent_respawn_rate, grace_period, agent_despawn_rate)
         self.possible_agents = ["player_" + str(r) for r in range(players)]
         self.agents = self.possible_agents[:]
         self.t = 0
@@ -72,6 +75,15 @@ class LBFEnvironment(AECEnv):
         self.agent_observations = {agent: None for agent in self.possible_agents}
 
     def step(self, action: ActionType) -> None:
+        if action is None:
+            if any(self.foraging_env.status_changed):
+                self.agents = [agent for idx, agent in enumerate(self.possible_agents[:])
+                               if self.foraging_env.active_agents[idx]]
+                self._agent_selector = agent_selector(self.agents)
+                if not self.agents:
+                    return
+                self.agent_selection = self._agent_selector.next()
+            return
         if self.terminations[self.agent_selection] or self.truncations[self.agent_selection]:
             self._was_dead_step(action)
             return
@@ -82,6 +94,11 @@ class LBFEnvironment(AECEnv):
         if self._agent_selector.is_last():
             self.accumulated_step(self.accumulated_actions)
             self.accumulated_actions = []
+            for ag in self.agents:
+                if self.terminations[ag] or self.truncations[ag]:
+                    self.agent_selection = ag
+                    self._cumulative_rewards[agent] = 0
+                    return
         self.agent_selection = self._agent_selector.next()
         self._cumulative_rewards[agent] = 0
 
@@ -90,18 +107,32 @@ class LBFEnvironment(AECEnv):
         self.t += 1
         nobs, nreward, nterminated, ntruncated, ninfo = self.foraging_env.step(actions)
 
-        for idx, agent in enumerate(self.agents):
-            self.rewards[agent] = nreward[idx]
-            self.terminations[agent] = nterminated[idx]
-            self.truncations[agent] = ntruncated[idx]
-            self.infos[agent] = ninfo[idx]
-            self._cumulative_rewards[agent] += nreward[idx]
-            self.agent_observations[agent] = nobs[idx]
+        self.rewards = {}
+        self.terminations = {}
+        self.truncations = {}
+        self.infos = {}
+        self.agent_observations = {}
+
+        offset_idx = 0
+        for idx, agent in enumerate(self.possible_agents[:]):
+            if not (self.foraging_env.active_agents[idx] or self.foraging_env.status_changed[idx]):
+                offset_idx += 1
+                continue
+
+            self.rewards[agent] = nreward[idx - offset_idx]
+            self.terminations[agent] = nterminated[idx - offset_idx]
+            self.truncations[agent] = ntruncated[idx - offset_idx]
+            self.infos[agent] = ninfo[idx - offset_idx]
+            self._cumulative_rewards[agent] += nreward[idx - offset_idx]
+            self.agent_observations[agent] = nobs[idx - offset_idx]
+
+        self.agents = [agent for idx, agent in enumerate(self.possible_agents[:])
+                       if self.foraging_env.active_agents[idx] or self.foraging_env.status_changed[idx]]
+        self._agent_selector = agent_selector(self.agents)
 
     def reset(self, seed: int | None = None, options: dict | None = None) -> None:
         self.t = 0
 
-        # For tracking data during an episode.
         self.termination_info = ""
 
         self.agents = self.possible_agents[:]
