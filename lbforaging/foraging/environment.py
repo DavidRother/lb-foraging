@@ -41,13 +41,15 @@ class Player:
         self.reward = 0
         self.history = None
         self.current_step = None
+        self.task = None
 
-    def setup(self, position, level, field_size):
+    def setup(self, position, level, field_size, task):
         self.history = []
         self.position = position
         self.level = level
         self.field_size = field_size
         self.score = 0
+        self.task = task
 
     def set_controller(self, controller):
         self.controller = controller
@@ -103,10 +105,12 @@ class ForagingEnv(Env):
         self.seed()
         self.players = [Player() for _ in range(players)]
         self.obs_spaces = obs_spaces or [ObservationSpace.VECTOR_OBSERVATION] * players
+        self.field_size = field_size
 
-        self.apple_field = np.zeros(field_size, np.int32)
-        self.banana_field = np.zeros(field_size, np.int32)
-        self.food_type_mapping = {"apple": self.apple_field, "banana": self.banana_field}
+        apple_field = np.zeros(field_size, np.int32)
+        banana_field = np.zeros(field_size, np.int32)
+        self.food_type_mapping = {"apple": apple_field, "banana": banana_field}
+        self.task_mapping = {"collect_apples": "apple", "collect_bananas": "banana"}
 
         self.penalty = penalty
         self.food_types = food_types or ["apple"]
@@ -146,8 +150,9 @@ class ForagingEnv(Env):
         self.relevant_agents = self.players
 
     def reset(self, **kwargs):
-        self.apple_field = np.zeros(self.field_size, np.int32)
-        self.banana_field = np.zeros(self.field_size, np.int32)
+        apple_field = np.zeros(self.field_size, np.int32)
+        banana_field = np.zeros(self.field_size, np.int32)
+        self.food_type_mapping = {"apple": apple_field, "banana": banana_field}
         self.spawn_players(self.max_player_level)
         player_levels = sorted([player.level for player in self.players])
         self.last_actions = [Action.NONE for _ in self.players]
@@ -168,17 +173,22 @@ class ForagingEnv(Env):
     def step(self, actions):
         active_agents_start = [agent for idx, agent in enumerate(self.players) if self.active_agents[idx]]
         self.last_actions = actions
+        self.clear_rewards()
         assert len(actions) == len(active_agents_start)
         self.status_changed = [False] * self.n_agents
         self.current_step += 1
         self.do_world_step(actions, active_agents_start)
         self.handle_agent_spawn()
         self.relevant_agents = self.compute_relevant_agents()
-        self._game_over = (self.apple_field.sum() + self.banana_field.sum() == 0)
+        self._game_over = sum([field.sum() for field in self.food_type_mapping.values()]) == 0
         self._gen_valid_moves()
         self.compute_rewards()
         nobs, nreward, ndone, ntruncated, ninfo = self._make_gym_obs(active_agents_start)
         return nobs, nreward, ndone, ntruncated, ninfo
+
+    def clear_rewards(self):
+        for p in self.players:
+            p.reward = 0
 
     def compute_rewards(self):
         if self.reward_scheme == "new":
@@ -244,7 +254,10 @@ class ForagingEnv(Env):
             player = loading_players.pop()
             for food_type in self.food_types:
                 field = self.food_type_mapping[food_type]
-                frow, fcol = self.adjacent_food_location(*player.position, field)
+                food_location = self.adjacent_food_location(*player.position, field)
+                if food_location is None:
+                    continue
+                frow, fcol = food_location
                 food = field[frow, fcol]
 
                 adj_players = self.adjacent_players(frow, fcol, active_agents_start)
@@ -260,10 +273,12 @@ class ForagingEnv(Env):
                         a.reward -= self.penalty
                 else:
                     for a in adj_players:
+                        field[frow, fcol] = 0
+                        if food_type != self.task_mapping[a.task]:
+                            continue
                         a.reward = float(a.level * food)
                         if self._normalize_reward:
                             a.reward = a.reward / float(adj_player_level * self._food_spawned)  # normalize reward
-                        field[frow, fcol] = 0
 
     def handle_agent_spawn(self):
         for i in range(self.n_agents):
@@ -299,7 +314,7 @@ class ForagingEnv(Env):
         while attempts < 1000:
             row = self.np_random.integers(0, self.rows)
             col = self.np_random.integers(0, self.cols)
-            if self._is_empty_location(row, col):
+            if all([self._is_empty_location(row, col, field) for field in self.food_type_mapping.values()]):
                 player.position = (row, col)
                 break
             attempts += 1
@@ -310,8 +325,8 @@ class ForagingEnv(Env):
         - player description (x, y, level)*player_count
         """
         if self.obs_spaces[0] == ObservationSpace.VECTOR_OBSERVATION:
-            field_x = self.apple_field.shape[1]
-            field_y = self.apple_field.shape[0]
+            field_x = self.field_size[1]
+            field_y = self.field_size[0]
             # field_size = field_x * field_y
 
             max_food = self.max_food
@@ -350,7 +365,7 @@ class ForagingEnv(Env):
         players = []
         for p in obs.players:
             player = Player()
-            player.setup(p.position, p.level, obs.field.shape)
+            player.setup(p.position, p.level, obs.field.shape, "collect_apples")
             player.score = p.score if p.score else 0
             players.append(player)
 
@@ -359,12 +374,7 @@ class ForagingEnv(Env):
         env.current_step = obs.current_step
         env.sight = obs.sight
         env._gen_valid_moves()
-
         return env
-
-    @property
-    def field_size(self):
-        return self.apple_field.shape
 
     @property
     def rows(self):
@@ -421,12 +431,12 @@ class ForagingEnv(Env):
                 or abs(player.position[1] - col) == 1 and player.position[0] == row]
 
     def spawn_food(self, max_food, max_level):
-        food_count = 0
-        attempts = 0
         min_level = max_level if self.force_coop else 1
 
         for food_type in self.food_types:
             field = self.food_type_mapping[food_type]
+            food_count = 0
+            attempts = 0
             while food_count < max_food and attempts < 1000:
                 attempts += 1
                 row = self.np_random.integers(1, self.rows - 1)
@@ -454,7 +464,7 @@ class ForagingEnv(Env):
         return True
 
     def spawn_players(self, max_player_level):
-        for player in self.players:
+        for player, task in zip(self.players, self.tasks):
 
             attempts = 0
             player.reward = 0
@@ -465,7 +475,7 @@ class ForagingEnv(Env):
                 is_empty = [self._is_empty_location(row, col, self.food_type_mapping[field_type])
                             for field_type in self.food_types]
                 if is_empty:
-                    player.setup((row, col), self.np_random.integers(1, max_player_level + 1), self.field_size)
+                    player.setup((row, col), self.np_random.integers(1, max_player_level + 1), self.field_size, task)
                     break
                 attempts += 1
 
@@ -564,11 +574,10 @@ class ForagingEnv(Env):
         for player in self.players:
             player_x, player_y = player.position
             agents_layer[player_x + self.sight, player_y + self.sight] = player.level
-
-        foods_layer = np.zeros(grid_shape, dtype=np.float32)
-        foods_layer[self.sight:-self.sight, self.sight:-self.sight] = self.apple_field.copy()
-        banana_layer = np.zeros(grid_shape, dtype=np.float32)
-        banana_layer[self.sight:-self.sight, self.sight:-self.sight] = self.banana_field.copy()
+        food_layer = []
+        for field in self.food_type_mapping.values():
+            food_layer.append(np.zeros(grid_shape, dtype=np.float32))
+            food_layer[-1][self.sight:-self.sight, self.sight:-self.sight] = field.copy()
 
         access_layer = np.ones(grid_shape, dtype=np.float32)
         # out of bounds not accessible
@@ -581,15 +590,12 @@ class ForagingEnv(Env):
             player_x, player_y = player.position
             access_layer[player_x + self.sight, player_y + self.sight] = 0.0
         # food locations are not accessible
-        foods_x, foods_y = self.apple_field.nonzero()
-        for x, y in zip(foods_x, foods_y):
-            access_layer[x + self.sight, y + self.sight] = 0.0
+        for field in self.food_type_mapping.values():
+            food_x, food_y = field.nonzero()
+            for x, y in zip(food_x, food_y):
+                access_layer[x + self.sight, y + self.sight] = 0.0
 
-        foods_x, foods_y = self.banana_field.nonzero()
-        for x, y in zip(foods_x, foods_y):
-            access_layer[x + self.sight, y + self.sight] = 0.0
-
-        return np.stack([agents_layer, foods_layer, banana_layer, access_layer])
+        return np.stack([agents_layer, *food_layer, access_layer])
 
     def get_agent_grid_bounds(self, agent_x, agent_y):
         return agent_x, agent_x + 2 * self.sight + 1, agent_y, agent_y + 2 * self.sight + 1
@@ -614,7 +620,7 @@ class ForagingEnv(Env):
             else:
                 nobs.append(obs)
         nreward = [self.get_player_reward(obs) for obs in observations]
-        ndone = [obs.game_over for obs in observations]
+        ndone = self.compute_terminations(observations)
         # ninfo = [{'observation': obs} for obs in observations]
         curated_actions = self._compute_curated_actions(active_agents_start)
         ninfo = self.compute_info(curated_actions)
@@ -638,6 +644,20 @@ class ForagingEnv(Env):
             if self.status_changed[idx] and not self.active_agents[idx]:
                 truncated[idx - offset_idx] = True
         return truncated
+
+    def compute_terminations(self, observations):
+        ndone = [obs.game_over for obs in observations]
+        done = []
+        idx = 0
+        for player in self.players:
+            if player not in self.relevant_agents:
+                idx += 1
+                continue
+            done.append(ndone.pop(0))
+            self.status_changed[idx] = done[-1]
+            self.active_agents[idx] = not done[-1]
+            idx += 1
+        return done
 
     def _compute_curated_actions(self, active_agents_start):
         curated_actions = []

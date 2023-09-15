@@ -141,7 +141,7 @@ class H5(HeuristicAgent):
     def _step(self, obs):
 
         # food_1 = obs.
-        foods = list(zip(*np.nonzero(obs.field)))
+        foods = list(zip(*np.nonzero(self.field)))
         if len(foods) > 1:
             food_1 = foods[0]
             food_2 = foods[1]

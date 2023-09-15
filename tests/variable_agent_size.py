@@ -1,12 +1,13 @@
 from lbforaging.foraging.pettingzoo_environment import parallel_env, ObservationSpace
 from lbforaging.foraging.manual_policy import ManualPolicy
 from lbforaging.agents.heuristic_agent import H1, H2, H3
+import time
 
 
 players = 4
 max_player_level = 2
 field_size = (8, 8)
-max_food = 4
+max_food = 2
 sight = 8
 max_episode_steps = 50
 force_coop = False
@@ -54,6 +55,7 @@ while True:
         actions["player_3"] = predator3_action
     observations, rewards, terminations, truncations, infos = env.step(actions)
     env.render()
+    time.sleep(0.3)
     print(truncations)
     for agent_id in accumulated_rewards:
         accumulated_rewards[agent_id] += rewards[agent_id]
