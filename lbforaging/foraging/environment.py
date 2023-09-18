@@ -110,7 +110,7 @@ class ForagingEnv(Env):
         apple_field = np.zeros(field_size, np.int32)
         banana_field = np.zeros(field_size, np.int32)
         self.food_type_mapping = {"apple": apple_field, "banana": banana_field}
-        self.task_mapping = {"collect_apples": "apple", "collect_bananas": "banana"}
+        self.task_mapping = defaultdict(str, {"collect_apples": "apple", "collect_bananas": "banana"})
 
         self.penalty = penalty
         self.food_types = food_types or ["apple"]
@@ -332,8 +332,8 @@ class ForagingEnv(Env):
             max_food = self.max_food
             max_food_level = self.max_player_level * len(self.players)
 
-            min_obs = [0, 0, 0, 0] * max_food * [self.food_types] + [0, 0, 0] * len(self.players)
-            max_obs = [field_x-1, field_y-1, max_food_level, 1] * max_food * [self.food_types] + \
+            min_obs = [0, 0, 0, 0] * max_food * len(self.food_types) + [0, 0, 0] * len(self.players)
+            max_obs = [field_x-1, field_y-1, max_food_level, 1] * max_food * len(self.food_types) + \
                       [field_x-1, field_y-1, self.max_player_level] * len(self.players)
         else:
             # grid observation space
@@ -534,30 +534,32 @@ class ForagingEnv(Env):
         seen_players = [p for p in observation.players if p.is_self] + \
                        [p for p in observation.players if not p.is_self]
 
-        for i in range(self.max_food):
+        for i in range(self.max_food * len(self.food_types)):
             obs[4 * i] = 0
             obs[4 * i + 1] = 0
             obs[4 * i + 2] = 0
             obs[4 * i + 3] = 0
 
-        for field in observation.field:
-            for i, (y, x) in enumerate(zip(*np.nonzero(field))):
-                obs[4 * i] = y
-                obs[4 * i + 1] = x
-                obs[4 * i + 2] = field[y, x]
-                obs[4 * i + 3] = 1
+        for idx, field in enumerate(observation.field):
+            counter = 0
+            for y, x in zip(*np.nonzero(field)):
+                obs[4 * counter + (idx * self.max_food * 4)] = y
+                obs[4 * counter + (idx * self.max_food * 4) + 1] = x
+                obs[4 * counter + (idx * self.max_food * 4) + 2] = field[y, x]
+                obs[4 * counter + (idx * self.max_food * 4) + 3] = 1
+                counter += 1
 
         for i in range(len(self.players)):
-            obs[self.max_food * 4 + 3 * i] = -1
-            obs[self.max_food * 4 + 3 * i + 1] = -1
-            obs[self.max_food * 4 + 3 * i + 2] = 0
+            obs[self.max_food * len(self.food_types) * 4 + 3 * i] = -1
+            obs[self.max_food * len(self.food_types) * 4 + 3 * i + 1] = -1
+            obs[self.max_food * len(self.food_types) * 4 + 3 * i + 2] = 0
 
         for i, p in enumerate(self.players):
-            if p not in seen_players:
+            if not self.active_agents[i]:
                 continue
-            obs[self.max_food * 4 + 3 * i] = p.position[0]
-            obs[self.max_food * 4 + 3 * i + 1] = p.position[1]
-            obs[self.max_food * 4 + 3 * i + 2] = p.level
+            obs[self.max_food * len(self.food_types) * 4 + 3 * i] = p.position[0]
+            obs[self.max_food * len(self.food_types) * 4 + 3 * i + 1] = p.position[1]
+            obs[self.max_food * len(self.food_types) * 4 + 3 * i + 2] = p.level
 
         return obs
 

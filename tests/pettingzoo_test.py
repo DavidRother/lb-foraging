@@ -12,8 +12,7 @@ force_coop = False
 collisions = True
 food_types = ["apple", "banana"]
 tasks = ["collect_bananas"]
-obs_spaces = [ObservationSpace.SYMBOLIC_OBSERVATION, ObservationSpace.SYMBOLIC_OBSERVATION,
-              ObservationSpace.SYMBOLIC_OBSERVATION, ObservationSpace.SYMBOLIC_OBSERVATION]
+obs_spaces = [ObservationSpace.VECTOR_OBSERVATION]
 
 env = parallel_env(players=players, max_player_level=max_player_level, field_size=field_size, max_food=max_food,
                    sight=sight, max_episode_steps=max_episode_steps, force_coop=force_coop, tasks=tasks,
@@ -30,7 +29,7 @@ manual_policy = ManualPolicy(env, agent_id="player_0")
 while not all(terminations.values()):
     action = {"player_0": manual_policy("player_0")}
     observations, rewards, terminations, truncations, infos = env.step(action)
-    print(rewards)
+    print(observations)
     env.render()
 
 

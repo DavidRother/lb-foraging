@@ -12,7 +12,7 @@ sight = 8
 max_episode_steps = 50
 force_coop = False
 collisions = True
-food_types = ["apple", "banana"]
+food_types = ["apple"]
 tasks = ["collect_apples", "collect_apples", "collect_apples", "collect_apples"]
 obs_spaces = [ObservationSpace.SYMBOLIC_OBSERVATION, ObservationSpace.SYMBOLIC_OBSERVATION,
               ObservationSpace.SYMBOLIC_OBSERVATION, ObservationSpace.SYMBOLIC_OBSERVATION]
@@ -56,7 +56,7 @@ while True:
     observations, rewards, terminations, truncations, infos = env.step(actions)
     env.render()
     time.sleep(0.3)
-    print(truncations)
+    print(rewards)
     for agent_id in accumulated_rewards:
         accumulated_rewards[agent_id] += rewards[agent_id]
 
