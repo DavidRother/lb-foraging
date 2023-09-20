@@ -180,7 +180,9 @@ class ForagingEnv(Env):
         self.do_world_step(actions, active_agents_start)
         self.handle_agent_spawn()
         self.relevant_agents = self.compute_relevant_agents()
-        self._game_over = sum([field.sum() for field in self.food_type_mapping.values()]) == 0
+        relevant_fields = [self.food_type_mapping[self.task_mapping[task]] for task in self.tasks
+                           if self.task_mapping[task] in self.food_type_mapping]
+        self._game_over = sum([field.sum() for field in relevant_fields]) == 0
         self._gen_valid_moves()
         self.compute_rewards()
         nobs, nreward, ndone, ntruncated, ninfo = self._make_gym_obs(active_agents_start)
@@ -194,7 +196,7 @@ class ForagingEnv(Env):
         if self.reward_scheme == "new":
             for p in self.players:
                 p.reward *= 10
-                p.reward -= 0.1
+                p.reward -= 0.3
                 p.score += p.reward
         elif self.reward_scheme == "old":
             for p in self.players:
@@ -506,7 +508,7 @@ class ForagingEnv(Env):
     def get_valid_actions(self) -> list:
         return list(product(*[self._valid_actions[player] for player in self.players]))
 
-    def _make_obs(self, player):
+    def _make_obs(self, player, task=""):
         players = []
         for a in self.relevant_agents:
             if (min(self._transform_to_neighborhood(player.position, self.sight, a.position)) >= 0) and \
@@ -518,6 +520,7 @@ class ForagingEnv(Env):
                 players.append(player_obs)
         fields = [np.copy(self.neighborhood(*player.position, self.food_type_mapping[field_type], self.sight))
                   for field_type in self.food_types]
+
         return self.Observation(
             actions=self._valid_actions[player],
             players=players,

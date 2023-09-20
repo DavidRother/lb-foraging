@@ -142,6 +142,8 @@ class H5(HeuristicAgent):
 
         # food_1 = obs.
         foods = list(zip(*np.nonzero(self.field)))
+        if len(foods) == 0:
+            return random.choice(obs.actions)
         if len(foods) > 1:
             food_1 = foods[0]
             food_2 = foods[1]
