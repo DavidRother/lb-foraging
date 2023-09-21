@@ -164,7 +164,6 @@ class H5(HeuristicAgent):
 
         if (abs(food_choice[0] - y) + abs(food_choice[1] - x)) == 1:
             return Action.LOAD
-
         try:
             return self._move_towards((food_choice[0], food_choice[1]), obs.actions)
         except ValueError:

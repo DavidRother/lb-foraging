@@ -445,17 +445,24 @@ class ForagingEnv(Env):
                 col = self.np_random.integers(1, self.cols - 1)
 
                 # check if it has neighbors:
-                if (
-                    self.neighborhood(row, col, field).sum() > 0
-                    or self.neighborhood(row, col, field, distance=2, ignore_diag=True) > 0
-                    or not self._is_empty_location(row, col, field)
-                ):
+                if not self.check_neighborhood(row, col):
                     continue
 
                 field[row, col] = (min_level if min_level == max_level
                                    else self.np_random.integers(min_level, max_level))
                 food_count += 1
             self._food_spawned += field.sum()
+
+    def check_neighborhood(self, row, col):
+        free = True
+        for field in self.food_type_mapping.values():
+            free = free and self.neighborhood(row, col, field).sum() == 0
+            free = free and self.neighborhood(row, col, field, distance=2, ignore_diag=True) == 0
+            free = free and self._is_empty_location(row, col, field)
+            if not free:
+                return free
+        return free
+
 
     def _is_empty_location(self, row, col, field):
         if field[row, col] != 0:
