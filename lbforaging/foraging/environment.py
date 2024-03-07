@@ -29,6 +29,7 @@ class ObservationSpace(Enum):
     GRID_OBSERVATION = 0
     VECTOR_OBSERVATION = 1
     SYMBOLIC_OBSERVATION = 2
+    GLOBAL_GRID_OBSERVATION = 3
 
 
 class Player:
@@ -337,6 +338,27 @@ class ForagingEnv(Env):
             min_obs = [0, 0, 0, 0] * max_food * len(self.food_types) + [0, 0, 0] * len(self.players)
             max_obs = [field_x-1, field_y-1, max_food_level, 1] * max_food * len(self.food_types) + \
                       [field_x-1, field_y-1, self.max_player_level] * len(self.players)
+
+        elif self.obs_spaces[0] == ObservationSpace.GLOBAL_GRID_OBSERVATION:
+            # grid observation space
+            grid_shape = (1 + 2 * self.field_size[0], 1 + 2 * self.field_size[1])
+
+            # agents layer: agent levels
+            agents_min = np.zeros(grid_shape, dtype=np.float32)
+            agents_max = np.ones(grid_shape, dtype=np.float32) * self.max_player_level
+
+            # foods layer: foods level
+            max_food_level = self.max_player_level * len(self.players)
+            foods_min = np.zeros(grid_shape, dtype=np.float32)
+            foods_max = np.ones(grid_shape, dtype=np.float32) * max_food_level
+
+            # access layer: i the cell available
+            access_min = np.zeros(grid_shape, dtype=np.float32)
+            access_max = np.ones(grid_shape, dtype=np.float32)
+
+            # total layer
+            min_obs = np.stack([agents_min, foods_min, access_min]).transpose((1, 2, 0))
+            max_obs = np.stack([agents_max, foods_max, access_max]).transpose((1, 2, 0))
         else:
             # grid observation space
             grid_shape = (1 + 2 * self.sight, 1 + 2 * self.sight)
@@ -355,8 +377,8 @@ class ForagingEnv(Env):
             access_max = np.ones(grid_shape, dtype=np.float32)
 
             # total layer
-            min_obs = np.stack([agents_min, foods_min, access_min])
-            max_obs = np.stack([agents_max, foods_max, access_max])
+            min_obs = np.stack([agents_min, foods_min, access_min]).transpose((1, 2, 0))
+            max_obs = np.stack([agents_max, foods_max, access_max]).transpose((1, 2, 0))
 
         shape = np.array(min_obs).shape
         return gym.spaces.Box(np.array(min_obs, dtype=np.float32), np.array(max_obs, dtype=np.float32),
@@ -607,7 +629,7 @@ class ForagingEnv(Env):
             for x, y in zip(food_x, food_y):
                 access_layer[x + self.sight, y + self.sight] = 0.0
 
-        return np.stack([agents_layer, *food_layer, access_layer])
+        return np.stack([agents_layer, *food_layer, access_layer]).transpose((1, 2, 0))
 
     def get_agent_grid_bounds(self, agent_x, agent_y):
         return agent_x, agent_x + 2 * self.sight + 1, agent_y, agent_y + 2 * self.sight + 1
@@ -629,6 +651,8 @@ class ForagingEnv(Env):
                 nobs.append(layers[:, start_x:end_x, start_y:end_y])
             elif obs_space == ObservationSpace.VECTOR_OBSERVATION:
                 nobs.append(self.make_obs_array(obs))
+            if obs_space == ObservationSpace.GLOBAL_GRID_OBSERVATION:
+                nobs.append(layers)
             else:
                 nobs.append(obs)
         nreward = [self.get_player_reward(obs) for obs in observations]
