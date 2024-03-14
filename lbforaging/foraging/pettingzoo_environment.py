@@ -171,3 +171,5 @@ class LBFEnvironment(AECEnv):
 
     def screenshot(self, path="screenshot.png"):
         self.foraging_env.save_image(path)
+
+

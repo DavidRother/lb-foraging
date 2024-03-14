@@ -30,6 +30,7 @@ class ObservationSpace(Enum):
     VECTOR_OBSERVATION = 1
     SYMBOLIC_OBSERVATION = 2
     GLOBAL_GRID_OBSERVATION = 3
+    GLOBAL_GRID_AGENT_OBSERVATION = 4
 
 
 class Player:
@@ -149,10 +150,14 @@ class ForagingEnv(Env):
         self.active_agents = [True] * self.n_agents
         self.status_changed = [False] * self.n_agents
         self.relevant_agents = self.players
+        self.possible_tasks = ["collect_apples", "collect_bananas", "no_task"]
+        self.goal_vectors = [self.one_hot_array(self.possible_tasks.index(goal), len(self.possible_tasks))
+                             for goal in self.tasks]
 
     def reset(self, **kwargs):
         apple_field = np.zeros(self.field_size, np.int32)
         banana_field = np.zeros(self.field_size, np.int32)
+        self._food_spawned = 0.0
         self.food_type_mapping = {"apple": apple_field, "banana": banana_field}
         self.spawn_players(self.max_player_level)
         player_levels = sorted([player.level for player in self.players])
@@ -197,7 +202,7 @@ class ForagingEnv(Env):
         if self.reward_scheme == "new":
             for p in self.players:
                 p.reward *= 10
-                p.reward -= 0.3
+                p.reward -= (20 / self._max_episode_steps)
                 p.score += p.reward
         elif self.reward_scheme == "old":
             for p in self.players:
@@ -357,8 +362,28 @@ class ForagingEnv(Env):
             access_max = np.ones(grid_shape, dtype=np.float32)
 
             # total layer
-            min_obs = np.stack([agents_min, foods_min, access_min]).transpose((1, 2, 0))
-            max_obs = np.stack([agents_max, foods_max, access_max]).transpose((1, 2, 0))
+            min_obs = np.stack([agents_min, foods_min, foods_min, access_min]).transpose((1, 2, 0))
+            max_obs = np.stack([agents_max, foods_max, foods_max, access_max]).transpose((1, 2, 0))
+        elif self.obs_spaces[0] == ObservationSpace.GLOBAL_GRID_AGENT_OBSERVATION:
+            # grid observation space
+            grid_shape = self.field_size
+
+            # agents layer: agent levels
+            agents_min = np.zeros(grid_shape, dtype=np.float32)
+            agents_max = np.ones(grid_shape, dtype=np.float32) * self.max_player_level
+
+            # foods layer: foods level
+            max_food_level = self.max_player_level * len(self.players)
+            foods_min = np.zeros(grid_shape, dtype=np.float32)
+            foods_max = np.ones(grid_shape, dtype=np.float32) * max_food_level
+
+            # access layer: i the cell available
+            access_min = np.zeros(grid_shape, dtype=np.float32)
+            access_max = np.ones(grid_shape, dtype=np.float32)
+
+            # total layer
+            min_obs = np.stack([agents_min, foods_min, foods_min, agents_min]).transpose((1, 2, 0))
+            max_obs = np.stack([agents_max, foods_max, foods_max, agents_max]).transpose((1, 2, 0))
         else:
             # grid observation space
             grid_shape = (1 + 2 * self.sight, 1 + 2 * self.sight)
@@ -377,8 +402,8 @@ class ForagingEnv(Env):
             access_max = np.ones(grid_shape, dtype=np.float32)
 
             # total layer
-            min_obs = np.stack([agents_min, foods_min, access_min]).transpose((1, 2, 0))
-            max_obs = np.stack([agents_max, foods_max, access_max]).transpose((1, 2, 0))
+            min_obs = np.stack([agents_min, foods_min, foods_min, access_min]).transpose((1, 2, 0))
+            max_obs = np.stack([agents_max, foods_max, foods_max, access_max]).transpose((1, 2, 0))
 
         shape = np.array(min_obs).shape
         return gym.spaces.Box(np.array(min_obs, dtype=np.float32), np.array(max_obs, dtype=np.float32),
@@ -471,7 +496,7 @@ class ForagingEnv(Env):
                     continue
 
                 field[row, col] = (min_level if min_level == max_level
-                                   else self.np_random.integers(min_level, max_level))
+                                   else self.np_random.integers(min_level, max_level + 1))
                 food_count += 1
             self._food_spawned += field.sum()
 
@@ -484,7 +509,6 @@ class ForagingEnv(Env):
             if not free:
                 return free
         return free
-
 
     def _is_empty_location(self, row, col, field):
         if field[row, col] != 0:
@@ -631,6 +655,24 @@ class ForagingEnv(Env):
 
         return np.stack([agents_layer, *food_layer, access_layer]).transpose((1, 2, 0))
 
+    def global_grid_player_obs(self, agent):
+        grid_shape = self.field_size
+
+        agents_layer = np.zeros(grid_shape, dtype=np.float32)
+        other_agents_layer = np.zeros(grid_shape, dtype=np.float32)
+        for player in self.players:
+            player_x, player_y = player.position
+            if agent == player:
+                agents_layer[player_x, player_y] = player.level
+            else:
+                other_agents_layer[player_x, player_y] = player.level
+        food_layer = []
+        for field in self.food_type_mapping.values():
+            food_layer.append(field.copy())
+
+        obs = np.stack([agents_layer, *food_layer, other_agents_layer])
+        return obs.transpose((1, 2, 0))
+
     def get_agent_grid_bounds(self, agent_x, agent_y):
         return agent_x, agent_x + 2 * self.sight + 1, agent_y, agent_y + 2 * self.sight + 1
 
@@ -653,10 +695,14 @@ class ForagingEnv(Env):
                 nobs.append(self.make_obs_array(obs))
             if obs_space == ObservationSpace.GLOBAL_GRID_OBSERVATION:
                 nobs.append(layers)
+            if obs_space == ObservationSpace.GLOBAL_GRID_AGENT_OBSERVATION:
+                nobs.append(self.global_grid_player_obs(player))
             else:
                 nobs.append(obs)
         nreward = [self.get_player_reward(obs) for obs in observations]
         ndone = self.compute_terminations(observations)
+        if all(ndone):
+            nreward = [rew + 20 for rew in nreward]
         # ninfo = [{'observation': obs} for obs in observations]
         curated_actions = self._compute_curated_actions(active_agents_start)
         ninfo = self.compute_info(curated_actions)
@@ -718,7 +764,10 @@ class ForagingEnv(Env):
             if player not in self.relevant_agents:
                 idx_offset += 1
             else:
-                ninfo.append({"action": curated_actions[idx - idx_offset], "task": self.tasks[idx - idx_offset]})
+                relevant_field = self.food_type_mapping[self.task_mapping[self.tasks[idx - idx_offset]]]
+                task_done = relevant_field.sum() == 0
+                ninfo.append({"action": curated_actions[idx - idx_offset], "task": self.tasks[idx - idx_offset],
+                              "goal_vector": self.goal_vectors[idx - idx_offset], "task_done": task_done})
         return ninfo
 
     def _init_render(self):
@@ -739,3 +788,24 @@ class ForagingEnv(Env):
 
     def save_image(self, path="screenshot.png"):
         self.viewer.save_image(path)
+
+    @staticmethod
+    def one_hot_array(n, c):
+        """
+        Creates a one-hot encoded numpy array.
+
+        Parameters:
+        - n (int): The index to be set to 1.
+        - c (int): The number of categories (length of the one-hot encoded array).
+
+        Returns:
+        - numpy.ndarray: A one-hot encoded array of length c, with a 1 at index n and 0s elsewhere.
+        """
+        # Ensure n is within the range of categories
+        if n >= c or n < 0:
+            raise ValueError("n must be in the range [0, c-1].")
+
+        # Create a one-hot encoded array
+        one_hot = np.zeros(c)
+        one_hot[n] = 1
+        return one_hot
