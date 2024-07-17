@@ -87,6 +87,7 @@ class ForagingEnv(Env):
         self,
         players,
         max_player_level,
+        solo_possible,
         field_size,
         max_food,
         sight,
@@ -123,6 +124,7 @@ class ForagingEnv(Env):
         self.sight = sight
         self.force_coop = force_coop
         self._game_over = None
+        self.solo_possible = solo_possible
 
         self._rendering_initialized = False
         self._valid_actions = None
@@ -163,7 +165,7 @@ class ForagingEnv(Env):
         player_levels = sorted([player.level for player in self.players])
         self.last_actions = [Action.NONE for _ in self.players]
 
-        self.spawn_food(self.max_food, max_level=sum(player_levels[:3]))
+        self.spawn_food(self.max_food, max_level=sum(player_levels[:2]))
         self.current_step = 0
         self._game_over = False
         self._gen_valid_moves()
@@ -481,6 +483,7 @@ class ForagingEnv(Env):
 
     def spawn_food(self, max_food, max_level):
         min_level = max_level if self.force_coop else 1
+        used_max_level = max([player.level for player in self.players]) if self.solo_possible else max_level
 
         for food_type in self.food_types:
             field = self.food_type_mapping[food_type]
@@ -495,8 +498,8 @@ class ForagingEnv(Env):
                 if not self.check_neighborhood(row, col):
                     continue
 
-                field[row, col] = (min_level if min_level == max_level
-                                   else self.np_random.integers(min_level, max_level + 1))
+                field[row, col] = (min_level if min_level == used_max_level
+                                   else self.np_random.integers(min_level, used_max_level + 1))
                 food_count += 1
             self._food_spawned += field.sum()
 

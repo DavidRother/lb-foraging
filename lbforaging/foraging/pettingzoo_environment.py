@@ -13,7 +13,8 @@ from pettingzoo.utils.env import ObsType, ActionType
 from lbforaging.foraging.environment import ForagingEnv, ObservationSpace
 
 
-def env(players, max_player_level, field_size, max_food, sight, max_episode_steps, force_coop, tasks=None,
+def env(players, max_player_level, solo_possible, field_size, max_food, sight, max_episode_steps,
+        force_coop, tasks=None,
         normalize_reward=True, obs_spaces=None, penalty=0.0, reward_scheme="new", collision=False, food_types=None,
         agent_respawn_rate=0.0, grace_period=20, agent_despawn_rate=0.0):
     """
@@ -23,7 +24,8 @@ def env(players, max_player_level, field_size, max_food, sight, max_episode_step
     to provide sane error messages. You can find full documentation for these methods
     elsewhere in the developer documentation.
     """
-    env_init = LBFEnvironment(players, max_player_level, field_size, max_food, sight, max_episode_steps, force_coop,
+    env_init = LBFEnvironment(players, max_player_level, solo_possible, field_size, max_food, sight, max_episode_steps,
+                              force_coop,
                               tasks, normalize_reward, obs_spaces, penalty, reward_scheme, collision, food_types,
                               agent_respawn_rate, grace_period, agent_despawn_rate)
     env_init = wrappers.CaptureStdoutWrapper(env_init)
@@ -45,11 +47,12 @@ class LBFEnvironment(AECEnv):
         "render_fps": 20,
     }
 
-    def __init__(self, players, max_player_level, field_size, max_food, sight, max_episode_steps, force_coop,
+    def __init__(self, players, max_player_level, solo_possible, field_size, max_food, sight, max_episode_steps, force_coop,
                  tasks=None, normalize_reward=True, obs_spaces=None, penalty=0.0, reward_scheme="new", collision=False,
                  food_types=None, agent_respawn_rate=0.0, grace_period=20, agent_despawn_rate=0.0):
         super().__init__()
-        self.foraging_env = ForagingEnv(players, max_player_level, field_size, max_food, sight, max_episode_steps,
+        self.foraging_env = ForagingEnv(players, max_player_level, solo_possible, field_size, max_food, sight,
+                                        max_episode_steps,
                                         force_coop, tasks, normalize_reward, penalty, obs_spaces, reward_scheme,
                                         collision, food_types, agent_respawn_rate, grace_period, agent_despawn_rate)
         self.possible_agents = ["player_" + str(r) for r in range(players)]
