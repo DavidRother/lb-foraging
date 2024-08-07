@@ -16,7 +16,7 @@ from lbforaging.foraging.environment import ForagingEnv, ObservationSpace
 def env(players, max_player_level, solo_possible, field_size, max_food, sight, max_episode_steps,
         force_coop, tasks=None,
         normalize_reward=True, obs_spaces=None, penalty=0.0, reward_scheme="new", collision=False, food_types=None,
-        agent_respawn_rate=0.0, grace_period=20, agent_despawn_rate=0.0):
+        agent_respawn_rate=0.0, grace_period=20, agent_despawn_rate=0.0, food_coop=None):
     """
     The env function wraps the environment in 3 wrappers by default. These
     wrappers contain logic that is common to many pettingzoo environments.
@@ -27,7 +27,7 @@ def env(players, max_player_level, solo_possible, field_size, max_food, sight, m
     env_init = LBFEnvironment(players, max_player_level, solo_possible, field_size, max_food, sight, max_episode_steps,
                               force_coop,
                               tasks, normalize_reward, obs_spaces, penalty, reward_scheme, collision, food_types,
-                              agent_respawn_rate, grace_period, agent_despawn_rate)
+                              agent_respawn_rate, grace_period, agent_despawn_rate, food_coop)
     env_init = wrappers.CaptureStdoutWrapper(env_init)
     env_init = wrappers.OrderEnforcingWrapper(env_init)
     return env_init
@@ -49,12 +49,13 @@ class LBFEnvironment(AECEnv):
 
     def __init__(self, players, max_player_level, solo_possible, field_size, max_food, sight, max_episode_steps, force_coop,
                  tasks=None, normalize_reward=True, obs_spaces=None, penalty=0.0, reward_scheme="new", collision=False,
-                 food_types=None, agent_respawn_rate=0.0, grace_period=20, agent_despawn_rate=0.0):
+                 food_types=None, agent_respawn_rate=0.0, grace_period=20, agent_despawn_rate=0.0, food_coop=None):
         super().__init__()
         self.foraging_env = ForagingEnv(players, max_player_level, solo_possible, field_size, max_food, sight,
                                         max_episode_steps,
                                         force_coop, tasks, normalize_reward, penalty, obs_spaces, reward_scheme,
-                                        collision, food_types, agent_respawn_rate, grace_period, agent_despawn_rate)
+                                        collision, food_types, agent_respawn_rate, grace_period, agent_despawn_rate,
+                                        food_coop)
         self.possible_agents = ["player_" + str(r) for r in range(players)]
         self.agents = self.possible_agents[:]
         self.t = 0

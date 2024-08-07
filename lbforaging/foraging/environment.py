@@ -102,7 +102,8 @@ class ForagingEnv(Env):
         food_types=None,
         agent_respawn_rate=0.0,
         grace_period=20,
-        agent_despawn_rate=0.0
+        agent_despawn_rate=0.0,
+        food_coop=None
     ):
         self.logger = logging.getLogger(__name__)
         self.seed()
@@ -155,6 +156,7 @@ class ForagingEnv(Env):
         self.possible_tasks = ["collect_apples", "collect_bananas", "no_task"]
         self.goal_vectors = [self.one_hot_array(self.possible_tasks.index(goal), len(self.possible_tasks))
                              for goal in self.tasks]
+        self.food_coop = food_coop or [self.force_coop] * self.n_agents
 
     def reset(self, **kwargs):
         apple_field = np.zeros(self.field_size, np.int32)
@@ -482,10 +484,10 @@ class ForagingEnv(Env):
                 or abs(player.position[1] - col) == 1 and player.position[0] == row]
 
     def spawn_food(self, max_food, max_level):
-        min_level = max_level if self.force_coop else 1
         used_max_level = max([player.level for player in self.players]) if self.solo_possible else max_level
 
-        for food_type in self.food_types:
+        for idx, food_type in enumerate(self.food_types):
+            min_level = max_level if self.food_coop[idx] else 1
             field = self.food_type_mapping[food_type]
             food_count = 0
             attempts = 0
