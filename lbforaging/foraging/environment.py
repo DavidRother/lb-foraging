@@ -156,7 +156,7 @@ class ForagingEnv(Env):
         self.possible_tasks = ["collect_apples", "collect_bananas", "no_task"]
         self.goal_vectors = [self.one_hot_array(self.possible_tasks.index(goal), len(self.possible_tasks))
                              for goal in self.tasks]
-        self.food_coop = food_coop or [self.force_coop] * self.n_agents
+        self.food_coop = food_coop or [self.force_coop] * len(self.food_types)
 
     def reset(self, **kwargs):
         apple_field = np.zeros(self.field_size, np.int32)
