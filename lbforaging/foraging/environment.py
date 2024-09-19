@@ -182,6 +182,7 @@ class ForagingEnv(Env):
 
     def step(self, actions):
         active_agents_start = [agent for idx, agent in enumerate(self.players) if self.active_agents[idx]]
+        # print(f"Active Agents this step: {len(active_agents_start)}")
         self.last_actions = actions
         self.clear_rewards()
         assert len(actions) == len(active_agents_start)
@@ -293,7 +294,7 @@ class ForagingEnv(Env):
                             a.reward = a.reward / float(adj_player_level * self._food_spawned)  # normalize reward
 
     def handle_agent_spawn(self):
-        for i in range(self.n_agents):
+        for i in range(1, self.n_agents):
             if self.agent_grace_period[i] > 0:
                 self.agent_grace_period[i] -= 1
             else:
@@ -734,16 +735,25 @@ class ForagingEnv(Env):
 
     def compute_terminations(self, observations):
         ndone = [obs.game_over for obs in observations]
+        # if all(ndone):
+        #     print(f"all done")
         done = []
         idx = 0
+        agent_idx = 0
         for player in self.players:
             if player not in self.relevant_agents:
                 idx += 1
                 continue
             done.append(ndone.pop(0))
-            self.status_changed[idx] = done[-1]
-            self.active_agents[idx] = not done[-1]
+            # self.status_changed[idx] = [True if agent in self.relevant_agents else False
+            #                             for agent in self.world.agents]
+            # print(f"Active Agents before termination computation {self.active_agents[idx]}")
+            if all(done):
+                self.active_agents[idx] = False
+                self.status_changed[idx] = True
+            # print(f"Active Agents after termination computation {self.active_agents[idx]}")
             idx += 1
+            agent_idx += 1
         return done
 
     def _compute_curated_actions(self, active_agents_start):
@@ -769,8 +779,11 @@ class ForagingEnv(Env):
             if player not in self.relevant_agents:
                 idx_offset += 1
             else:
-                relevant_field = self.food_type_mapping[self.task_mapping[self.tasks[idx - idx_offset]]]
-                task_done = relevant_field.sum() == 0
+                try:
+                    relevant_field = self.food_type_mapping[self.task_mapping[self.tasks[idx - idx_offset]]]
+                    task_done = relevant_field.sum() == 0
+                except KeyError:
+                    task_done = 0
                 ninfo.append({"action": curated_actions[idx - idx_offset], "task": self.tasks[idx - idx_offset],
                               "goal_vector": self.goal_vectors[idx - idx_offset], "task_done": task_done})
         return ninfo
